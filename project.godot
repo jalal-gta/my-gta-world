@@ -1,0 +1,54 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="My GTA World"
+config/description="Open-world driving/action game scaffold with a full performance system: selectable 30/60/90 FPS targets with an Auto mode, runtime graphics presets (Low/Balanced/High/Ultra), battery saver, distance culling and MultiMesh city rendering. Android-first, fully offline."
+run/main_scene="res://scenes/main.tscn"
+config/features=PackedStringArray("4.7", "Mobile")
+config/icon="res://icon.svg"
+
+[autoload]
+
+; GameSettings: owns FPS modes, graphics presets, battery saver, persistence.
+; It also registers the input actions in code (see scripts/settings.gd) so this
+; file stays short and hand-editable.
+Settings="*res://scripts/settings.gd"
+
+[display]
+
+; 1152x648 base with "expand" aspect: the game adapts to any phone aspect
+; ratio (16:9, 19.5:9, 20:9, tablets) by expanding the visible world instead
+; of letterboxing.
+window/size/viewport_width=1152
+window/size/viewport_height=648
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[physics]
+
+; Fixed 60 Hz physics keeps vehicle/pedestrian behaviour identical on every
+; device; rendering may run at 30/60/90 on top of it (see Settings).
+common/physics_ticks_per_second=60
+; Smooths the rendered motion between physics ticks at high refresh rates.
+common/physics_interpolation=true
+
+[rendering]
+
+; Mobile renderer (Vulkan) by default, on desktop and on Android.
+; FALLBACK for very old GPUs without Vulkan: change
+; renderer/rendering_method.mobile below to "gl_compatibility" — that selects
+; the Compatibility renderer (OpenGL ES 3.0) on phones. The Low graphics
+; preset is tuned to stay smooth in that mode. See README.md.
+renderer/rendering_method="mobile"
+renderer/rendering_method.mobile="mobile"
+; ETC2/ASTC texture compression support so textures stay small on Android.
+textures/vram_compression/import_etc2_astc=true
