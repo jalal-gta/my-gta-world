@@ -45,12 +45,6 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Set up Android SDK command-line tools
-        uses: android-actions/setup-android@v3
-        with:
-          accept-android-sdk-licenses: true
-          log-accepted-android-sdk-licenses: false
-
       - name: Install the SDK packages Godot 4.7.2 needs
         shell: bash
         run: |
