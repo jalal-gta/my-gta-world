@@ -1,0 +1,90 @@
+[gd_scene load_steps=11 format=3 uid="uid://b0mygtaworld1"]
+
+[ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
+[ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
+[ext_resource type="Script" path="res://scripts/settings_ui.gd" id="3_ui"]
+
+[sub_resource type="Environment" id="Environment_sky"]
+background_mode = 1
+background_color = Color(0.32, 0.5, 0.75, 1)
+ambient_light_source = 2
+ambient_light_color = Color(0.7, 0.78, 0.9, 1)
+ambient_light_energy = 0.7
+
+[sub_resource type="StandardMaterial3D" id="Mat_ground"]
+albedo_color = Color(0.23, 0.24, 0.25, 1)
+roughness = 1.0
+
+[sub_resource type="PlaneMesh" id="Mesh_ground"]
+material = SubResource("Mat_ground")
+size = Vector2(800, 800)
+
+[sub_resource type="BoxShape3D" id="Shape_ground"]
+size = Vector3(800, 1, 800)
+
+[sub_resource type="CapsuleShape3D" id="Shape_player"]
+radius = 0.35
+height = 1.7
+
+[sub_resource type="StandardMaterial3D" id="Mat_player"]
+albedo_color = Color(0.9, 0.45, 0.15, 1)
+roughness = 0.7
+
+[sub_resource type="CapsuleMesh" id="Mesh_player"]
+material = SubResource("Mat_player")
+radius = 0.35
+height = 1.7
+
+[node name="Main" type="Node3D"]
+script = ExtResource("1_main")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = SubResource("Environment_sky")
+
+[node name="Sun" type="DirectionalLight3D" parent="." groups=["shadow_light"]]
+transform = Transform3D(1, 0, 0, 0, 0.6216, -0.7833, 0, 0.7833, 0.6216, 0, 0, 0)
+light_energy = 1.1
+shadow_enabled = true
+directional_shadow_max_distance = 220.0
+
+[node name="Ground" type="StaticBody3D" parent="."]
+
+[node name="Mesh" type="MeshInstance3D" parent="Ground"]
+mesh = SubResource("Mesh_ground")
+
+[node name="Collision" type="CollisionShape3D" parent="Ground"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.51, 0)
+shape = SubResource("Shape_ground")
+
+[node name="City" type="Node3D" parent="."]
+
+[node name="Traffic" type="Node3D" parent="."]
+
+[node name="Player" type="CharacterBody3D" parent="." groups=["player"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 6)
+script = ExtResource("2_player")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Player"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+shape = SubResource("Shape_player")
+
+[node name="MeshPivot" type="Node3D" parent="Player"]
+
+[node name="Body" type="MeshInstance3D" parent="Player/MeshPivot"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+mesh = SubResource("Mesh_player")
+
+[node name="CameraRig" type="Node3D" parent="Player"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.7, 0)
+
+[node name="SpringArm3D" type="SpringArm3D" parent="Player/CameraRig"]
+spring_length = 6.5
+margin = 0.3
+
+[node name="Camera3D" type="Camera3D" parent="Player/CameraRig/SpringArm3D"]
+current = true
+fov = 70.0
+far = 220.0
+
+[node name="UI" type="CanvasLayer" parent="."]
+script = ExtResource("3_ui")
