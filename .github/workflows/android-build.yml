@@ -1,0 +1,152 @@
+# My GTA World — free cloud Android build (GitHub Actions)
+#
+# Builds a DEBUG APK of the Godot project on GitHub's runners, so no local
+# PC is needed. Uses the project's existing export preset:
+#   preset name : "Android"            (from export_presets.cfg)
+#   export path : build/android/my-gta-world.apk
+#   package     : com.jalal.mygtaworld
+#
+# Toolchain versions match the Godot 4.7.2 Android export template
+# (config.gradle inside the 4.7.2 export templates):
+#   JDK 17, compile/target SDK 36, build-tools 36.1.0,
+#   cmake 3.22.1, NDK 29.0.14206865.
+
+name: Build Android APK (Godot 4.7.2)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+env:
+  GODOT_VERSION: "4.7.2"
+  GODOT_TAG: "4.7.2-stable"
+  EXPORT_PRESET: "Android"
+  APK_PATH: "build/android/my-gta-world.apk"
+  ANDROID_HOME: "/usr/local/lib/android/sdk"
+  ANDROID_SDK_ROOT: "/usr/local/lib/android/sdk"
+
+jobs:
+  build-android:
+    name: Export debug APK
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK command-line tools
+        uses: android-actions/setup-android@v3
+        with:
+          accept-android-sdk-licenses: true
+          log-accepted-android-sdk-licenses: false
+
+      - name: Install the SDK packages Godot 4.7.2 needs
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDKMANAGER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name sdkmanager | sort -V | tail -n 1)"
+          if [ -z "$SDKMANAGER" ]; then SDKMANAGER="$(command -v sdkmanager)"; fi
+          echo "Using sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses > /dev/null || true
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;android-36" \
+            "build-tools;36.1.0" \
+            "cmake;3.22.1" \
+            "ndk;29.0.14206865"
+
+      - name: Install Godot 4.7.2 editor and export templates
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE="https://github.com/godotengine/godot/releases/download/${GODOT_TAG}"
+          curl -fL --retry 3 "$BASE/Godot_v${GODOT_TAG}_linux.x86_64.zip" -o "$RUNNER_TEMP/godot.zip"
+          curl -fL --retry 3 "$BASE/Godot_v${GODOT_TAG}_export_templates.tpz" -o "$RUNNER_TEMP/templates.tpz"
+          mkdir -p "$RUNNER_TEMP/godot" "$RUNNER_TEMP/tpz" \
+            "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable"
+          unzip -q "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot"
+          install -m 0755 "$RUNNER_TEMP/godot/Godot_v${GODOT_TAG}_linux.x86_64" /usr/local/bin/godot
+          unzip -q "$RUNNER_TEMP/templates.tpz" -d "$RUNNER_TEMP/tpz"
+          cp -a "$RUNNER_TEMP/tpz/templates/." \
+            "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/"
+          godot --version
+          echo "Templates version: $(cat "$HOME/.local/share/godot/export_templates/${GODOT_VERSION}.stable/version.txt")"
+
+      - name: Generate a debug keystore (debug signing only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          keytool -genkeypair -v \
+            -keystore "$HOME/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Android Debug,O=Android,C=US"
+
+      - name: Import the project once (creates editor settings)
+        shell: bash
+        run: godot --headless --path . --import
+
+      - name: Point Godot's Android settings at the runner's JDK, SDK and keystore
+        shell: bash
+        run: |
+          set -euo pipefail
+          SETTINGS="$HOME/.config/godot/editor_settings-4.7.tres"
+          mkdir -p "$(dirname "$SETTINGS")"
+          python3 - "$SETTINGS" <<'PY'
+          import os, sys
+          path = sys.argv[1]
+          keys = {
+              "export/android/java_sdk_path": os.environ["JAVA_HOME"],
+              "export/android/android_sdk_path": os.environ["ANDROID_HOME"],
+              "export/android/debug_keystore": os.path.expanduser("~/debug.keystore"),
+              "export/android/debug_keystore_user": "androiddebugkey",
+              "export/android/debug_keystore_pass": "android",
+          }
+          lines = []
+          if os.path.exists(path):
+              with open(path) as f:
+                  lines = [l.rstrip("\n") for l in f
+                           if not any(l.startswith(k + " =") for k in keys)]
+          for k, v in keys.items():
+              lines.append(f'{k} = "{v}"')
+          with open(path, "w") as f:
+              f.write("\n".join(lines) + "\n")
+          print("Configured Android editor settings in", path)
+          PY
+
+      - name: Export the debug APK (preset "Android")
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/android
+          godot --headless --verbose --path . \
+            --install-android-build-template \
+            --export-debug "$EXPORT_PRESET" "$GITHUB_WORKSPACE/$APK_PATH"
+          ls -lh "$APK_PATH"
+
+      - name: Verify the APK signature
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$ANDROID_HOME/build-tools/36.1.0/apksigner" verify --print-certs "$APK_PATH"
+
+      - name: Upload the APK as a workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: my-gta-world-android-debug-apk
+          path: build/android/my-gta-world.apk
+          if-no-files-found: error
+          retention-days: 30
