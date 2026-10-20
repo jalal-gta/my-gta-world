@@ -1,18 +1,43 @@
-[gd_scene load_steps=11 format=3 uid="uid://b0mygtaworld1"]
+[gd_scene load_steps=13 format=3 uid="uid://b0mygtaworld1"]
 
 [ext_resource type="Script" path="res://scripts/main.gd" id="1_main"]
 [ext_resource type="Script" path="res://scripts/player.gd" id="2_player"]
 [ext_resource type="Script" path="res://scripts/settings_ui.gd" id="3_ui"]
 
+[sub_resource type="ProceduralSkyMaterial" id="SkyMat_day"]
+sky_top_color = Color(0.22, 0.44, 0.78, 1)
+sky_horizon_color = Color(0.76, 0.85, 0.94, 1)
+sky_curve = 0.09
+sky_energy_multiplier = 1.0
+ground_bottom_color = Color(0.16, 0.15, 0.14, 1)
+ground_horizon_color = Color(0.76, 0.85, 0.94, 1)
+ground_curve = 0.06
+sun_angle_max = 25.0
+sun_curve = 0.06
+
+[sub_resource type="Sky" id="Sky_day"]
+sky_material = SubResource("SkyMat_day")
+
 [sub_resource type="Environment" id="Environment_sky"]
-background_mode = 1
-background_color = Color(0.32, 0.5, 0.75, 1)
-ambient_light_source = 2
-ambient_light_color = Color(0.7, 0.78, 0.9, 1)
-ambient_light_energy = 0.7
+background_mode = 2
+sky = SubResource("Sky_day")
+ambient_light_source = 3
+ambient_light_energy = 0.85
+tonemap_mode = 3
+adjustment_enabled = true
+adjustment_brightness = 1.03
+adjustment_contrast = 1.05
+adjustment_saturation = 1.15
+fog_enabled = true
+fog_mode = 1
+fog_light_color = Color(0.74, 0.83, 0.93, 1)
+fog_light_energy = 1.0
+fog_sun_scatter = 0.15
+fog_depth_begin = 77.0
+fog_depth_end = 220.0
 
 [sub_resource type="StandardMaterial3D" id="Mat_ground"]
-albedo_color = Color(0.23, 0.24, 0.25, 1)
+albedo_color = Color(0.19, 0.19, 0.21, 1)
 roughness = 1.0
 
 [sub_resource type="PlaneMesh" id="Mesh_ground"]
@@ -27,8 +52,9 @@ radius = 0.35
 height = 1.7
 
 [sub_resource type="StandardMaterial3D" id="Mat_player"]
-albedo_color = Color(0.9, 0.45, 0.15, 1)
-roughness = 0.7
+albedo_color = Color(0.88, 0.42, 0.13, 1)
+metallic = 0.05
+roughness = 0.55
 
 [sub_resource type="CapsuleMesh" id="Mesh_player"]
 material = SubResource("Mat_player")
@@ -38,14 +64,16 @@ height = 1.7
 [node name="Main" type="Node3D"]
 script = ExtResource("1_main")
 
-[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." groups=["world_env"]]
 environment = SubResource("Environment_sky")
 
 [node name="Sun" type="DirectionalLight3D" parent="." groups=["shadow_light"]]
-transform = Transform3D(1, 0, 0, 0, 0.6216, -0.7833, 0, 0.7833, 0.6216, 0, 0, 0)
-light_energy = 1.1
+transform = Transform3D(0.866, 0, 0.5, 0.383, 0.6428, -0.6634, -0.3214, 0.766, 0.5567, 0, 0, 0)
+light_color = Color(1, 0.95, 0.86, 1)
+light_energy = 1.25
 shadow_enabled = true
-directional_shadow_max_distance = 220.0
+shadow_opacity = 0.9
+directional_shadow_max_distance = 240.0
 
 [node name="Ground" type="StaticBody3D" parent="."]
 
