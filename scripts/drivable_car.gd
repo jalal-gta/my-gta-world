@@ -35,8 +35,8 @@ func _build() -> void:
 
 	var paint := StandardMaterial3D.new()
 	paint.albedo_color = Color(0.72, 0.14, 0.1)
-	paint.roughness = 0.35
-	paint.metallic = 0.35
+	paint.roughness = 0.26
+	paint.metallic = 0.5
 	var body := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = Vector3(1.9, 0.6, 4.4)
@@ -47,8 +47,8 @@ func _build() -> void:
 
 	var glass := StandardMaterial3D.new()
 	glass.albedo_color = Color(0.1, 0.13, 0.17)
-	glass.roughness = 0.2
-	glass.metallic = 0.4
+	glass.roughness = 0.12
+	glass.metallic = 0.6
 	var cabin := MeshInstance3D.new()
 	var cm := BoxMesh.new()
 	cm.size = Vector3(1.7, 0.55, 2.1)
@@ -72,6 +72,8 @@ func _build() -> void:
 		wheel.position = Vector3(p.x, 0.36, p.y)
 		add_child(wheel)
 
+	_add_lights()
+
 	var cam := Camera3D.new()
 	cam.name = "CarCamera"
 	cam.position = Vector3(0, 2.9, 8.2)
@@ -79,6 +81,32 @@ func _build() -> void:
 	cam.fov = 72.0
 	cam.current = false
 	add_child(cam)
+
+
+## Tiny emissive light strips (warm front / red rear), same cheap trick as
+## the traffic cars: material emission only, no real light nodes.
+func _add_lights() -> void:
+	var head := StandardMaterial3D.new()
+	head.albedo_color = Color(1.0, 0.95, 0.8)
+	head.emission_enabled = true
+	head.emission = Color(1.0, 0.93, 0.75)
+	head.emission_energy_multiplier = 1.6
+	var tail := StandardMaterial3D.new()
+	tail.albedo_color = Color(0.6, 0.05, 0.05)
+	tail.emission_enabled = true
+	tail.emission = Color(0.9, 0.08, 0.08)
+	tail.emission_energy_multiplier = 1.2
+	for spec in [
+		[Vector3(-0.6, 0.68, -2.21), head], [Vector3(0.6, 0.68, -2.21), head],
+		[Vector3(-0.6, 0.68, 2.21), tail], [Vector3(0.6, 0.68, 2.21), tail],
+	]:
+		var lamp := MeshInstance3D.new()
+		var lm := BoxMesh.new()
+		lm.size = Vector3(0.45, 0.15, 0.05)
+		lm.material = spec[1]
+		lamp.mesh = lm
+		lamp.position = spec[0]
+		add_child(lamp)
 
 
 func set_driven(v: bool) -> void:

@@ -27,8 +27,8 @@ func _ready() -> void:
 func _build_visuals() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = body_color
-	mat.roughness = 0.55
-	mat.metallic = 0.25
+	mat.roughness = 0.38
+	mat.metallic = 0.45
 	var body := MeshInstance3D.new()
 	var bm := BoxMesh.new()
 	bm.size = Vector3(1.8, 0.55, 4.2)
@@ -38,8 +38,8 @@ func _build_visuals() -> void:
 	add_child(body)
 	var glass := StandardMaterial3D.new()
 	glass.albedo_color = Color(0.12, 0.15, 0.19)
-	glass.roughness = 0.25
-	glass.metallic = 0.4
+	glass.roughness = 0.15
+	glass.metallic = 0.6
 	var cabin := MeshInstance3D.new()
 	var cm := BoxMesh.new()
 	cm.size = Vector3(1.6, 0.5, 2.0)
@@ -47,6 +47,34 @@ func _build_visuals() -> void:
 	cabin.mesh = cm
 	cabin.position = Vector3(0, 1.05, -0.2)
 	add_child(cabin)
+	_add_lights()
+
+
+## Tiny emissive light strips: warm headlights at the front (-Z, the way
+## the car faces when following waypoints), red at the rear. Pure material
+## emission on shared thin boxes — no lights, no textures, negligible cost.
+func _add_lights() -> void:
+	var head := StandardMaterial3D.new()
+	head.albedo_color = Color(1.0, 0.95, 0.8)
+	head.emission_enabled = true
+	head.emission = Color(1.0, 0.93, 0.75)
+	head.emission_energy_multiplier = 1.6
+	var tail := StandardMaterial3D.new()
+	tail.albedo_color = Color(0.6, 0.05, 0.05)
+	tail.emission_enabled = true
+	tail.emission = Color(0.9, 0.08, 0.08)
+	tail.emission_energy_multiplier = 1.2
+	for spec in [
+		[Vector3(-0.55, 0.62, -2.11), head], [Vector3(0.55, 0.62, -2.11), head],
+		[Vector3(-0.55, 0.62, 2.11), tail], [Vector3(0.55, 0.62, 2.11), tail],
+	]:
+		var lamp := MeshInstance3D.new()
+		var lm := BoxMesh.new()
+		lm.size = Vector3(0.42, 0.14, 0.05)
+		lm.material = spec[1]
+		lamp.mesh = lm
+		lamp.position = spec[0]
+		add_child(lamp)
 
 
 func _process(delta: float) -> void:

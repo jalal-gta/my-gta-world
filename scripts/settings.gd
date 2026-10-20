@@ -39,18 +39,22 @@ const PRESETS := {
 	Preset.LOW: {
 		"scale": 0.6, "msaa": 0, "shadow_atlas": 1024, "shadows": false,
 		"cast_shadows": false, "view_distance": 90.0, "aniso": 0,
+		"shadow_splits": 0, "shadow_blur": 1.0,
 	},
 	Preset.BALANCED: {
 		"scale": 0.8, "msaa": 0, "shadow_atlas": 2048, "shadows": true,
 		"cast_shadows": true, "view_distance": 140.0, "aniso": 2,
+		"shadow_splits": 1, "shadow_blur": 1.1,
 	},
 	Preset.HIGH: {
 		"scale": 1.0, "msaa": 1, "shadow_atlas": 4096, "shadows": true,
 		"cast_shadows": true, "view_distance": 200.0, "aniso": 4,
+		"shadow_splits": 2, "shadow_blur": 1.4,
 	},
 	Preset.ULTRA: {
 		"scale": 1.0, "msaa": 2, "shadow_atlas": 4096, "shadows": true,
 		"cast_shadows": true, "view_distance": 260.0, "aniso": 8,
+		"shadow_splits": 2, "shadow_blur": 1.6,
 	},
 }
 
@@ -209,7 +213,21 @@ func apply_scene_settings() -> void:
 	var cfg: Dictionary = PRESETS[effective_preset()]
 	for n in get_tree().get_nodes_in_group("shadow_light"):
 		if n is DirectionalLight3D:
-			(n as DirectionalLight3D).shadow_enabled = bool(cfg["shadows"])
+			var sun := n as DirectionalLight3D
+			sun.shadow_enabled = bool(cfg["shadows"])
+			# Shadow quality scales with the preset: more parallel splits
+			# keep shadows crisp over a larger area, extra blur softens
+			# the edges (cheap, mobile-friendly alternative to PCSS).
+			sun.directional_shadow_mode = int(cfg["shadow_splits"]) as DirectionalLight3D.ShadowMode
+			sun.shadow_blur = float(cfg["shadow_blur"])
+			sun.directional_shadow_max_distance = view_distance + 80.0
+	# Depth fog hugs the view distance: distant buildings fade into the
+	# horizon colour, which also hides the chunk culling pop-in.
+	for n in get_tree().get_nodes_in_group("world_env"):
+		if n is WorldEnvironment and (n as WorldEnvironment).environment != null:
+			var env := (n as WorldEnvironment).environment
+			env.fog_depth_begin = view_distance * 0.55
+			env.fog_depth_end = view_distance + 80.0
 	var cast_mode := (
 		GeometryInstance3D.SHADOW_CASTING_SETTING_ON
 		if bool(cfg["cast_shadows"])

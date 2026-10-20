@@ -66,17 +66,44 @@ func _process(delta: float) -> void:
 # City: MultiMesh buildings grouped into culling chunks
 # ---------------------------------------------------------------------------
 func _build_city() -> void:
+	# Richer building palette: warm sandstone/brick/terracotta, cool slate
+	# and concrete, plus one "glass tower" material whose faint emission
+	# sells the window look without any texture. Buildings multiply their
+	# material albedo by a per-instance colour (see the jitter below), so
+	# vertex_color_use_as_albedo must be on for instance colours to show.
 	var mats: Array[StandardMaterial3D] = []
-	for c in [
-		Color(0.56, 0.58, 0.62), Color(0.64, 0.56, 0.48),
-		Color(0.46, 0.53, 0.62), Color(0.62, 0.62, 0.58),
+	for spec in [
+		[Color(0.72, 0.62, 0.48), 0.9, 0.0], # sandstone
+		[Color(0.62, 0.38, 0.30), 0.95, 0.0], # brick red
+		[Color(0.66, 0.66, 0.64), 0.9, 0.0], # light concrete
+		[Color(0.45, 0.52, 0.62), 0.85, 0.05], # slate blue-grey
+		[Color(0.78, 0.72, 0.60), 0.92, 0.0], # cream
+		[Color(0.35, 0.52, 0.55), 0.35, 0.35], # glass (teal, semi-polished)
 	]:
 		var m := StandardMaterial3D.new()
-		m.albedo_color = c
-		m.roughness = 0.95
+		m.albedo_color = spec[0]
+		m.roughness = spec[1]
+		m.metallic = spec[2]
+		m.vertex_color_use_as_albedo = true
 		mats.append(m)
+	# Glass towers glow very faintly, like sunlit windows. Free (no texture,
+	# same draw call) and subtle enough to read in daylight too.
+	var glass := mats[5]
+	glass.emission_enabled = true
+	glass.emission = Color(0.45, 0.68, 0.72)
+	glass.emission_energy_multiplier = 0.3
+	var building_mat_count := mats.size()
+
+	var roof := StandardMaterial3D.new()
+	roof.albedo_color = Color(0.16, 0.16, 0.18)
+	roof.roughness = 0.95
+	mats.append(roof)
+	var roof_idx := mats.size() - 1
+
+	# Pavement slabs stay noticeably lighter than the dark asphalt ground,
+	# so the street grid reads clearly from the chase camera.
 	var pavement := StandardMaterial3D.new()
-	pavement.albedo_color = Color(0.32, 0.32, 0.34)
+	pavement.albedo_color = Color(0.40, 0.40, 0.42)
 	pavement.roughness = 1.0
 	mats.append(pavement)
 	var pavement_idx := mats.size() - 1
@@ -84,7 +111,7 @@ func _build_city() -> void:
 	var box := BoxMesh.new()
 	box.size = Vector3.ONE
 
-	# key: "chunk_x,chunk_z,mat" -> Array[Transform3D]
+	# key: "chunk_x,chunk_z,mat" -> {"t": Array[Transform3D], "c": Array[Color]}
 	var buckets := {}
 	var slots := [Vector2(-4.6, -4.6), Vector2(4.6, -4.6), Vector2(-4.6, 4.6), Vector2(4.6, 4.6)]
 
@@ -94,7 +121,7 @@ func _build_city() -> void:
 			var cz := bz * PITCH
 			_add_instance(buckets, pavement_idx,
 				Transform3D(Basis.from_scale(Vector3(BLOCK_SIZE + 2.0, 0.2, BLOCK_SIZE + 2.0)),
-					Vector3(cx, 0.1, cz)))
+					Vector3(cx, 0.1, cz)), Color.WHITE)
 			# 3 buildings per block, taller towards the city centre.
 			var center_factor := 1.6 - Vector2(bx, bz).length() / float(BLOCKS + 1)
 			var slot_offset := posmod(bx + bz, 4)
@@ -103,21 +130,37 @@ func _build_city() -> void:
 				var w := _rng.randf_range(7.0, 12.5)
 				var d := _rng.randf_range(7.0, 12.5)
 				var h := _rng.randf_range(6.0, 20.0) * center_factor
-				_add_instance(buckets, _rng.randi_range(0, 2),
+				# Subtle per-building tint: brightness jitter plus a faint
+				# warm/cool shift, so no two buildings look identical.
+				var v := _rng.randf_range(0.8, 1.02)
+				var tint := Color(v, v * _rng.randf_range(0.96, 1.0), v * _rng.randf_range(0.93, 1.0))
+				_add_instance(buckets, _rng.randi_range(0, building_mat_count - 1),
 					Transform3D(Basis.from_scale(Vector3(w, h, d)),
-						Vector3(cx + s.x, h * 0.5 + 0.2, cz + s.y)))
+						Vector3(cx + s.x, h * 0.5 + 0.2, cz + s.y)), tint)
+				# Rooftop detail box on taller buildings — reads as plant /
+				# stair housing from the orbit camera and breaks the flat
+				# roofline for the price of one extra instanced box.
+				if h > 8.0:
+					_add_instance(buckets, roof_idx,
+						Transform3D(Basis.from_scale(Vector3(w * 0.42, 1.0, d * 0.42)),
+							Vector3(cx + s.x, h + 0.7, cz + s.y)), Color.WHITE)
 
 	for key in buckets:
 		var parts := String(key).split(",")
 		var chunk := Vector2(int(parts[0]), int(parts[1]))
 		var mat_idx := int(parts[2])
-		var transforms: Array = buckets[key]
+		var transforms: Array = buckets[key]["t"]
+		var colors: Array = buckets[key]["c"]
 		var mm := MultiMesh.new()
 		mm.transform_format = MultiMesh.TRANSFORM_3D
+		if mat_idx < building_mat_count:
+			mm.use_colors = true
 		mm.mesh = box
 		mm.instance_count = transforms.size()
 		for i in transforms.size():
 			mm.set_instance_transform(i, transforms[i])
+			if mm.use_colors:
+				mm.set_instance_color(i, colors[i])
 		var mmi := MultiMeshInstance3D.new()
 		mmi.multimesh = mm
 		mmi.material_override = mats[mat_idx]
@@ -134,13 +177,14 @@ func _build_city() -> void:
 		_chunk_nodes.append(mmi)
 
 
-func _add_instance(buckets: Dictionary, mat_idx: int, t: Transform3D) -> void:
+func _add_instance(buckets: Dictionary, mat_idx: int, t: Transform3D, tint: Color) -> void:
 	var chunk := Vector2(
 		floori(t.origin.x / CHUNK_SIZE), floori(t.origin.z / CHUNK_SIZE))
 	var key := "%d,%d,%d" % [int(chunk.x), int(chunk.y), mat_idx]
 	if not buckets.has(key):
-		buckets[key] = []
-	(buckets[key] as Array).append(t)
+		buckets[key] = {"t": [], "c": []}
+	(buckets[key]["t"] as Array).append(t)
+	(buckets[key]["c"] as Array).append(tint)
 
 
 # ---------------------------------------------------------------------------
