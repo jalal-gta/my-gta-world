@@ -18,7 +18,7 @@ prove it all works.
 | FPS / frame-time overlay | `scripts/settings_ui.gd` | Shows **measured** FPS, frame time, draw calls and object count (`Performance` monitors) — nothing is faked or estimated. Toggle it in Settings. |
 | Settings UI | `scripts/settings_ui.gd` | Touch-sized controls (≥48 px): FPS mode, preset, battery saver, overlay toggle, view-distance slider. Choices persist to `user://my_gta_world_settings.cfg`. |
 | Touch controls | `scripts/virtual_joystick.gd`, `scripts/player.gd` | Virtual joystick (bottom-left) for movement, touch-drag to orbit the camera. Keyboard/mouse (WASD, Space, Shift, E) for desktop testing. |
-| City rendering | `scripts/main.gd` | 49 city blocks / 147 buildings as **MultiMesh** instances — one draw call per chunk×material (63 chunk meshes total) instead of hundreds. Chunks are distance-culled every 0.25 s against the view distance. |
+| City rendering | `scripts/main.gd` | 49 city blocks / 147 buildings as **MultiMesh** instances — one draw call per chunk×material (106 chunk meshes total) instead of hundreds. Chunks are distance-culled every 0.25 s against the view distance. Buildings use a 6-material palette with per-instance colour variation and rooftop detail boxes (see `GRAPHICS-UPGRADE-NOTES.md`). |
 | Traffic | `scripts/traffic_car.gd` | 6 ambient cars on waypoint loops. **Kinematic, no physics bodies** — a fraction of the CPU cost. Cars also hide/pause beyond view distance. |
 | Drivable car | `scripts/drivable_car.gd` | One arcade car (the only vehicle physics body): walk up, press E, drive, E to get out. Speed-scaled steering, all delta-based so it behaves the same at 30/60/90 FPS. |
 | Physics | `project.godot` | Fixed **60 Hz** physics ticks on every device + physics interpolation, so gameplay feel is identical while rendering runs at 30/60/90. |
@@ -44,7 +44,7 @@ prove it all works.
    stored immediately but fully applies to textures loaded afterwards.
 4. **Performance optimization** — MultiMesh batching (draw calls), chunk
    distance culling (a form of distance-based rendering), kinematic traffic
-   (cheap AI), one shared unit-box mesh + 5 shared materials, no reflection
+   (cheap AI), one shared unit-box mesh + 8 shared materials, no reflection
    probes, no real-time reflections, shadow atlas sized per preset.
 5. **Display & thermal** — refresh-rate detection drives Auto mode; vsync is
    left to the OS/display (the engine cap sits under it); Battery Saver +
